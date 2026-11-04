@@ -180,7 +180,7 @@ table.res .pend{color:var(--suave)}
       <fieldset>
         <legend>Algoritmo</legend>
         <div class="algoritmos" id="algoritmos">
-          <label><input type="radio" name="alg" value="FIFO" checked>FIFO</label>
+          <label><input type="radio" name="alg" value="FCFS" checked>FCFS</label>
           <label><input type="radio" name="alg" value="SJF">SJF</label>
           <label><input type="radio" name="alg" value="SRTF">SRTF</label>
           <label><input type="radio" name="alg" value="RR">RR</label>
@@ -300,7 +300,7 @@ function simular(procs, alg, q) {
     }
     if (!cpu && listos.length) {
       let elegido;
-      if (alg === 'FIFO' || alg === 'RR') elegido = listos[0];
+      if (alg === 'FCFS' || alg === 'RR') elegido = listos[0];
       else if (alg === 'SJF') elegido = elegirMin(listos, p => p.b);
       else elegido = elegirMin(listos, p => p.rem);
       listos.splice(listos.indexOf(elegido), 1);
@@ -324,7 +324,7 @@ function simular(procs, alg, q) {
 
 const EJEMPLO = [["P1",0,6],["P2",1,3],["P3",2,8],["P4",4,2]];
 const DESC = {
-  FIFO: "Se atiende por orden de llegada y cada proceso se ejecuta entero.",
+  FCFS: "Se atiende por orden de llegada y cada proceso se ejecuta entero.",
   SJF: "Cuando la CPU queda libre entra el proceso más corto. No hay expulsión.",
   SRTF: "En cada llegada, si un proceso necesita menos tiempo que lo que le queda al que está en la CPU, lo expulsa.",
   RR: "Cada proceso usa la CPU como mucho q unidades seguidas y, si no ha terminado, vuelve al final de la cola."
