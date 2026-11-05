@@ -115,19 +115,32 @@ legend{font-weight:700;color:var(--navy);margin-bottom:.5rem;padding:0;font-size
 .sucesos strong{color:var(--navy)}
 .sucesos ul{margin:.3rem 0 0;padding-left:1.1rem}
 
-/* Cronograma */
+/* Cronograma: una fila por proceso */
 .cronograma{margin-top:1.25rem}
 .gantt-scroll{overflow-x:auto;padding-bottom:.25rem}
-.gantt{position:relative;min-width:calc(var(--T) * 30px);padding:0 10px}
-.pista{position:relative;height:52px;border:1px solid var(--linea);border-radius:6px;
+.gantt{--etq:4.2rem;position:relative;min-width:calc(var(--etq) + var(--T) * 30px + 10px);padding-right:10px}
+.fila-g{display:grid;grid-template-columns:var(--etq) 1fr;align-items:center;height:34px}
+.etq{font-weight:700;font-size:.95rem;display:flex;align-items:center;gap:.4rem;white-space:nowrap}
+.etq.libre{font-weight:400;color:var(--suave);font-size:.85rem}
+.pista{position:relative;height:24px;border-bottom:1px solid var(--linea);
   background:repeating-linear-gradient(90deg,transparent 0 calc(100% / var(--T) - 1px),var(--linea) calc(100% / var(--T) - 1px) calc(100% / var(--T)));}
-.tramo{position:absolute;top:0;bottom:0;display:flex;align-items:center;justify-content:center;font-weight:700;border-right:2px solid var(--panel);overflow:hidden;white-space:nowrap}
-.tramo.libre{background:repeating-linear-gradient(45deg,transparent 0 5px,var(--linea) 5px 7px);color:var(--suave);font-weight:400}
+.tramo{position:absolute;top:0;bottom:0;border-radius:3px}
+.tramo.ejec{border-right:2px solid var(--panel)}
+.tramo.espera{box-sizing:border-box}
+.tramo.libre{background:repeating-linear-gradient(45deg,transparent 0 5px,var(--suave) 5px 6px);opacity:.6}
 .tramo.nuevo{animation:aparece .3s ease-out}
 @keyframes aparece{from{clip-path:inset(0 calc((1 - var(--desde, 0)) * 100%) 0 0)}to{clip-path:inset(0 0 0 0)}}
-.cursor{position:absolute;top:-6px;bottom:-6px;width:3px;margin-left:-1.5px;background:var(--aviso);border-radius:2px;transition:left .25s}
-.eje{position:relative;height:1.5rem;margin-top:.25rem;font-size:.82rem;color:var(--suave);font-variant-numeric:tabular-nums}
+.capa-cursor{position:absolute;top:0;left:var(--etq);right:10px;bottom:1.75rem;pointer-events:none}
+.cursor{position:absolute;top:-4px;bottom:-2px;width:3px;margin-left:-1.5px;background:var(--aviso);border-radius:2px;transition:left .25s}
+.eje{position:relative;height:1.5rem;margin:.3rem 0 0 var(--etq);font-size:.82rem;color:var(--suave);font-variant-numeric:tabular-nums}
 .eje span{position:absolute;transform:translateX(-50%)}
+.leyenda{display:flex;flex-wrap:wrap;gap:.4rem 1.5rem;margin-top:.6rem;font-size:.88rem;color:var(--suave)}
+.leyenda span{display:inline-flex;align-items:center;gap:.45rem}
+.leyenda i{display:inline-block;width:1.6rem;height:.85rem;border-radius:3px}
+.leyenda .l-ejec{background:var(--p1)}
+.leyenda .l-esp{background:color-mix(in srgb,var(--p1) 16%,var(--panel));border:1px solid color-mix(in srgb,var(--p1) 29%,var(--panel))}
+.leyenda .l-libre{background:repeating-linear-gradient(45deg,transparent 0 5px,var(--suave) 5px 6px);opacity:.6;border:1px solid var(--linea)}
+.leyenda [hidden]{display:none}
 
 /* Resultados */
 .resultados{margin-top:1.25rem}
@@ -234,9 +247,15 @@ table.res .pend{color:var(--suave)}
         <h2>Cronograma</h2>
         <div class="gantt-scroll">
           <div class="gantt" id="gantt">
-            <div class="pista" id="pista"><div class="cursor" id="cursor"></div></div>
+            <div id="filas-gantt"></div>
             <div class="eje" id="eje"></div>
+            <div class="capa-cursor"><div class="cursor" id="cursor"></div></div>
           </div>
+        </div>
+        <div class="leyenda">
+          <span><i class="l-ejec"></i>En ejecución (CPU), con el color de cada proceso</span>
+          <span><i class="l-esp"></i>Esperando en la cola de listos (el mismo color, más suave)</span>
+          <span id="ley-libre" hidden><i class="l-libre"></i>CPU libre</span>
         </div>
       </section>
 
@@ -331,7 +350,7 @@ const DESC = {
 };
 const $ = id => document.getElementById(id);
 let procesos = EJEMPLO.map(([n,a,b]) => ({n,a,b}));
-let sim = null, paso = 0, temporizador = null, tramosPintados = 0, tAnterior = -1;
+let sim = null, paso = 0, temporizador = null, tAnterior = -1, pistas = {};
 
 const colorDe = n => { const i = procesos.findIndex(p => p.n === n) % 8 + 1; return [`var(--p${i})`, `var(--t${i})`]; };
 const alg = () => document.querySelector('input[name="alg"]:checked').value;
@@ -380,9 +399,22 @@ function recalcular(){
   $('error').textContent = err;
   if (err){ sim = null; mostrar(); return; }
   sim = simular(procesos, alg(), +$('q').value);
-  paso = 0; tramosPintados = 0; tAnterior = -1;
+  paso = 0; tAnterior = -1;
   const T = sim.T;
   $('gantt').style.setProperty('--T', T);
+  const filasG = $('filas-gantt'); filasG.innerHTML = ''; pistas = {};
+  const nuevaFila = (clave, texto, color) => {
+    const f = document.createElement('div'); f.className = 'fila-g';
+    const e = document.createElement('span'); e.className = 'etq' + (color ? '' : ' libre');
+    if (color){ const m = document.createElement('span'); m.className = 'muestra'; m.style.background = color; e.appendChild(m); }
+    e.appendChild(document.createTextNode(texto));
+    const pi = document.createElement('div'); pi.className = 'pista';
+    f.append(e, pi); filasG.appendChild(f); pistas[clave] = pi;
+  };
+  procesos.forEach(p => nuevaFila(p.n, p.n, colorDe(p.n)[0]));
+  const hayLibre = sim.unidades.some(u => !u.n);
+  if (hayLibre) nuevaFila('\u0000libre', 'CPU libre', null);
+  $('ley-libre').hidden = !hayLibre;
   const eje = $('eje'); eje.innerHTML = '';
   for (let i = 0; i <= T; i++){ const s = document.createElement('span'); s.textContent = i; s.style.left = (i / T * 100) + '%'; eje.appendChild(s); }
   const tb = $('res-filas'); tb.innerHTML = '';
@@ -445,28 +477,52 @@ function mostrar(){
   evs.forEach(t => { const li = document.createElement('li'); li.textContent = t.charAt(0).toUpperCase() + t.slice(1) + '.'; ul.appendChild(li); });
   suc.appendChild(ul);
 
-  // Cronograma hasta t
-  const pista = $('pista');
-  pista.querySelectorAll('.tramo').forEach(e => e.remove());
-  const T = sim.T, segs = [];
-  sim.unidades.slice(0, st.t).forEach((u, i) => {
-    const l = segs[segs.length - 1];
-    if (l && l.d === u.d && (u.d !== -1 || l.n === null)) l.e = i + 1; else segs.push({n: u.n, d: u.d, s: i, e: i + 1});
-  });
-  segs.forEach((s, k) => {
+  // Cronograma hasta t: una fila por proceso
+  Object.values(pistas).forEach(el => el.innerHTML = '');
+  const T = sim.T, avanzando = st.t === tAnterior + 1;
+  const pintar = (pista, sgs, estilo) => sgs.forEach(sg => {
     const d = document.createElement('div');
-    const avanza = st.t === tAnterior + 1 && k === segs.length - 1 && s.e === st.t;
-    d.className = 'tramo' + (s.n ? '' : ' libre') + (avanza ? ' nuevo' : '');
-    if (avanza) d.style.setProperty('--desde', (s.e - s.s - 1) / (s.e - s.s));
-    d.style.left = (s.s / T * 100) + '%'; d.style.width = ((s.e - s.s) / T * 100) + '%';
-    if (s.n){ const [bg, fg] = colorDe(s.n); d.style.background = bg; d.style.color = fg; d.textContent = s.n; }
-    else d.textContent = '—';
-    d.title = `${s.n || 'CPU libre'}: de ${s.s} a ${s.e}`;
+    const nuevo = avanzando && sg.e === st.t;
+    d.className = 'tramo ' + sg.tipo + (nuevo ? ' nuevo' : '');
+    if (nuevo) d.style.setProperty('--desde', (sg.e - sg.s - 1) / (sg.e - sg.s));
+    d.style.left = (sg.s / T * 100) + '%'; d.style.width = ((sg.e - sg.s) / T * 100) + '%';
+    estilo(d, sg);
     pista.appendChild(d);
   });
-  tramosPintados = segs.length; tAnterior = st.t;
+  const agrupar = (estadoEn) => {
+    const sgs = [];
+    for (let i = 0; i < st.t; i++){
+      const k = estadoEn(i); if (!k) continue;
+      const l = sgs[sgs.length - 1];
+      if (l && l.k === k && l.e === i) l.e = i + 1;
+      else sgs.push({k, tipo: k.split(':')[0], s: i, e: i + 1});
+    }
+    return sgs;
+  };
+  procesos.forEach(p => {
+    const finP = sim.fin[p.n] ?? Infinity;
+    const sgs = agrupar(i => {
+      const u = sim.unidades[i];
+      if (u.n === p.n) return 'ejec:' + u.d;
+      if (p.a <= i && i < finP) return 'espera';
+      return null;
+    });
+    const [bg] = colorDe(p.n);
+    pintar(pistas[p.n], sgs, (d, sg) => {
+      if (sg.tipo === 'ejec'){ d.style.background = bg; d.title = `${p.n} en la CPU: de ${sg.s} a ${sg.e}`; }
+      else {
+        d.style.background = `color-mix(in srgb, ${bg} 16%, var(--panel))`;
+        d.style.border = `1px solid color-mix(in srgb, ${bg} 29%, var(--panel))`;
+        d.title = `${p.n} esperando en la cola: de ${sg.s} a ${sg.e}`;
+      }
+    });
+  });
+  if (pistas['\u0000libre']){
+    const sgs = agrupar(i => sim.unidades[i].n ? null : 'libre');
+    pintar(pistas['\u0000libre'], sgs, (d, sg) => { d.title = `CPU libre: de ${sg.s} a ${sg.e}`; });
+  }
+  tAnterior = st.t;
   $('cursor').style.left = (st.t / T * 100) + '%';
-  pista.appendChild($('cursor'));
 
   // Resultados hasta t
   let sTR = 0, sTE = 0, n = 0;
