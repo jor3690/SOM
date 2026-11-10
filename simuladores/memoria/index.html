@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gestión de memoria · SOM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --fondo:#EEF3F9; --panel:#FFFFFF; --tinta:#14213D; --suave:#5B6B85; --linea:#C9D6EA;
+  --navy:#1F3864; --cian:#00A3C4; --cian-claro:#E3F5FA; --aviso:#B54708; --ram:#4E7F3F; --ram-claro:#EAF3E4; --so:#5B6B85; --swap:#A8642A; --swap-claro:#F6EADF;
+  --p1:#1F3864; --p2:#00A3C4; --p3:#8FAADC; --p4:#F4B183;
+  --t1:#FFFFFF; --t2:#FFFFFF; --t3:#14213D; --t4:#14213D;
+  --fuente:"Atkinson Hyperlegible", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme: dark;
+    --fondo:#0D1626; --panel:#16223A; --tinta:#E6EDF7; --suave:#9AAAC4; --linea:#2C3D5E;
+    --navy:#9DC3E6; --cian:#33C3E0; --cian-claro:#123247; --aviso:#F5A35C; --ram:#8CC37A; --ram-claro:#1C3324; --so:#9AAAC4; --swap:#E0A36B; --swap-claro:#3A2A1C;
+    --p1:#4A6FB5;
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --fondo:#0D1626; --panel:#16223A; --tinta:#E6EDF7; --suave:#9AAAC4; --linea:#2C3D5E;
+  --navy:#9DC3E6; --cian:#33C3E0; --cian-claro:#123247; --aviso:#F5A35C; --ram:#8CC37A; --ram-claro:#1C3324; --so:#9AAAC4; --swap:#E0A36B; --swap-claro:#3A2A1C;
+  --p1:#4A6FB5;
+}
+:root{box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--fondo);color:var(--tinta);font-family:var(--fuente);font-size:1rem;line-height:1.5}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:10;background:var(--fondo)}
+button,input{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--cian);outline-offset:2px}
+
+.envoltorio{max-width:1180px;margin:0 auto;padding:1.25rem 1.25rem 3rem}
+h1{margin:0 0 .2rem;font-size:clamp(1.5rem,3vw,2rem);line-height:1.15;color:var(--navy)}
+.intro{margin:0 0 .5rem;color:var(--suave);max-width:70ch}
+h2{margin:0 0 .6rem;font-size:1.1rem;color:var(--navy)}
+h3{margin:0 0 .4rem;font-size:.95rem;color:var(--suave);font-weight:700}
+
+/* Barra fija con técnica y controles */
+.barra{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--fondo);margin:0 -1.25rem 1rem;padding:.7rem 1.25rem;border-bottom:1px solid var(--linea)}
+.barra-in{display:flex;flex-wrap:wrap;align-items:center;gap:.6rem 1rem}
+.tecnicas{display:flex;border:1px solid var(--linea);border-radius:8px;overflow:hidden;background:var(--panel)}
+.tecnicas button{border:0;border-left:1px solid var(--linea);background:none;padding:.5rem .85rem;font-weight:700;cursor:pointer;line-height:1.2}
+.tecnicas button:first-child{border-left:0}
+.tecnicas button[aria-pressed="true"]{background:var(--navy);color:var(--panel)}
+.controles{display:flex;gap:.4rem;align-items:center}
+.boton{border:1px solid var(--linea);background:var(--panel);border-radius:8px;padding:.5rem .9rem;cursor:pointer;font-weight:700}
+.boton:hover{border-color:var(--cian)}
+.boton:disabled{opacity:.4;cursor:not-allowed}
+.boton.principal{background:var(--navy);color:var(--panel);border-color:var(--navy);min-width:7rem}
+.estado{margin-left:auto;display:flex;align-items:baseline;gap:.8rem;font-variant-numeric:tabular-nums}
+.estado .t{font-size:1.9rem;font-weight:700;color:var(--navy);line-height:1;min-width:4.5ch;text-align:right}
+.estado .paso{color:var(--suave);font-size:.9rem}
+
+.bloque{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:1.1rem 1.2rem}
+.desc{margin:0 0 1rem;color:var(--suave);max-width:75ch}
+
+/* Escena */
+.escena{display:grid;grid-template-columns:minmax(240px,300px) 1fr;gap:1.25rem 2rem;align-items:start}
+.ram-marco{display:grid;grid-template-columns:2.6rem 1fr;height:500px}
+.ticks{position:relative;font-size:.72rem;color:var(--suave);font-variant-numeric:tabular-nums}
+.ticks span{position:absolute;right:.4rem;transform:translateY(-50%);white-space:nowrap}
+.ram{position:relative;border:2px solid var(--ram);border-radius:6px;background:var(--panel);overflow:hidden}
+.blq{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;text-align:center;font-size:.82rem;font-weight:700;overflow:hidden;white-space:nowrap;line-height:1.1;padding:0 .3rem;border-bottom:1px solid var(--panel)}
+.con-marcos .blq{left:2.4rem}
+.blq.so{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--so) 18%,var(--panel)) 0 8px,color-mix(in srgb,var(--so) 28%,var(--panel)) 8px 16px);color:var(--tinta);border-bottom:2px solid var(--so)}
+.blq.proc{background:var(--c);color:var(--ct)}
+.blq.proc.datos{background:color-mix(in srgb,var(--c) 45%,var(--panel));color:var(--tinta)}
+.blq.libre{color:var(--suave);font-weight:400;background:var(--panel);border-bottom:1px dashed var(--linea)}
+.blq.frag{background:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--aviso) 55%,var(--panel)) 5px 6px);color:var(--aviso);font-weight:400;font-size:.74rem}
+.blq.frag span{background:var(--panel);border-radius:3px;padding:0 .3rem;line-height:1.25}
+.blq.nuevo{animation:entra .45s ease-out}
+@keyframes entra{from{opacity:0;transform:scaleY(.6)}to{opacity:1;transform:none}}
+.particion{position:absolute;left:0;right:0;border-bottom:3px solid var(--ram);pointer-events:none;z-index:2}
+.particion .num{position:absolute;right:.25rem;top:.1rem;font-size:.66rem;color:var(--suave);font-weight:700;background:var(--panel);border-radius:3px;padding:0 .2rem;line-height:1.3}
+.marco-num{position:absolute;left:0;width:2.4rem;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;color:var(--ram);background:var(--ram-claro);border-right:1px solid color-mix(in srgb,var(--ram) 40%,var(--panel));border-bottom:1px solid var(--ram)}
+.marco-linea{position:absolute;left:0;right:0;border-bottom:1px solid var(--ram);pointer-events:none;z-index:2}
+
+.lado{display:grid;gap:1.1rem;min-width:0}
+.sucesos{padding:.75rem 1rem;background:var(--cian-claro);border-left:4px solid var(--cian);border-radius:0 8px 8px 0;min-height:4rem}
+.sucesos strong{color:var(--navy)}
+.sucesos ul{margin:.3rem 0 0;padding-left:1.1rem}
+.sucesos li+li{margin-top:.25rem}
+.metricas{display:flex;flex-wrap:wrap;gap:.5rem}
+.metrica{border:1px solid var(--linea);border-radius:8px;padding:.35rem .7rem;line-height:1.25;min-width:7.5rem}
+.metrica span{display:block;font-size:.78rem;color:var(--suave)}
+.metrica b{font-variant-numeric:tabular-nums;font-size:1.1rem}
+.metrica small{color:var(--suave);font-size:.8rem}
+.metrica.alerta{border-color:var(--aviso)}
+.metrica.alerta b{color:var(--aviso)}
+.cola{display:flex;flex-wrap:wrap;gap:.4rem;min-height:2.2rem;align-items:center}
+.ficha{display:inline-flex;align-items:baseline;gap:.35rem;padding:.3rem .6rem;border-radius:7px;font-weight:700;background:var(--c);color:var(--ct)}
+.ficha small{font-weight:400;font-size:.8rem}
+.vacia{color:var(--suave);font-style:italic}
+.elegir{display:flex;flex-wrap:wrap;gap:.35rem;margin-bottom:.5rem}
+.elegir button{border:2px solid transparent;border-radius:7px;padding:.2rem .6rem;font-weight:700;cursor:pointer;background:var(--c);color:var(--ct);opacity:.55}
+.elegir button[aria-pressed="true"]{opacity:1;border-color:var(--tinta)}
+table.mini{border-collapse:collapse;font-size:.9rem;font-variant-numeric:tabular-nums}
+table.mini th,table.mini td{border:1px solid var(--linea);padding:.25rem .7rem;text-align:center}
+table.mini th{background:var(--cian-claro);font-weight:700;color:var(--navy)}
+.caja-tabla[hidden],.disco-caja[hidden],.rechazo-caja[hidden],.parts[hidden]{display:none}
+.rechazo-caja{border:2px solid var(--aviso);border-radius:8px;padding:.6rem .75rem}
+.rechazo-caja h3{color:var(--aviso)}
+.rechazo-caja .ficha{opacity:.6;text-decoration:line-through}
+.disco-caja{border:2px solid var(--swap);background:var(--swap-claro);border-radius:8px;padding:.6rem .75rem}
+.disco-caja h3{color:var(--swap)}
+
+/* Datos y comparativa */
+.inferior{display:grid;grid-template-columns:1.15fr 1fr;gap:1.25rem;margin-top:1.25rem;align-items:start}
+.tabla-scroll{overflow-x:auto}
+table.procesos{border-collapse:collapse;width:100%;min-width:430px}
+table.procesos th{font-size:.8rem;font-weight:700;color:var(--suave);text-align:left;padding:0 .2rem .35rem;line-height:1.2}
+table.procesos td{padding:.2rem}
+table.procesos input{width:100%;max-width:5.5rem;padding:.35rem .45rem;border:1px solid var(--linea);border-radius:6px;background:transparent;text-align:right;-moz-appearance:textfield;appearance:textfield}
+table.procesos input::-webkit-inner-spin-button,table.procesos input::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+table.procesos .total{font-weight:700;text-align:right;padding-right:.6rem;font-variant-numeric:tabular-nums}
+.muestra{display:inline-flex;align-items:center;justify-content:center;min-width:2.3rem;padding:.2rem .4rem;border-radius:6px;font-weight:700;background:var(--c);color:var(--ct)}
+.parts{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;margin-top:1rem}
+.parts label{display:flex;align-items:center;gap:.3rem;font-size:.9rem;color:var(--suave)}
+.parts input{width:4.5rem;padding:.35rem .45rem;border:1px solid var(--linea);border-radius:6px;background:transparent;text-align:right;-moz-appearance:textfield;appearance:textfield}
+.nota{color:var(--suave);font-size:.88rem;margin:.6rem 0 0}
+.error{color:var(--aviso);font-size:.92rem;margin:.5rem 0 0;min-height:1.2em;font-weight:700}
+.fila-botones{margin-top:.6rem}
+.cabecera-res{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.4rem}
+.cabecera-res h2{margin:0}
+.interruptor{display:flex;align-items:center;gap:.45rem;font-size:.9rem;color:var(--suave);cursor:pointer}
+table.res{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums;min-width:400px}
+table.res th,table.res td{padding:.45rem .5rem;text-align:center;border-bottom:1px solid var(--linea)}
+table.res thead th{background:var(--navy);color:var(--panel);font-weight:700}
+table.res tbody th{text-align:left;font-weight:700}
+table.res tr.actual{background:var(--cian-claro)}
+table.res .nunca{color:var(--aviso);font-weight:700}
+.oculto td{color:transparent;background:repeating-linear-gradient(45deg,transparent 0 6px,var(--linea) 6px 7px)}
+
+@media (max-width:900px){.inferior{grid-template-columns:1fr}}
+@media (max-width:680px){
+  .escena{grid-template-columns:1fr}
+  .tecnicas{display:grid;grid-template-columns:1fr 1fr;width:100%}
+  .tecnicas button:nth-child(3){border-left:0}
+  .tecnicas button:nth-child(n+3){border-top:1px solid var(--linea)}
+  .tecnicas button:nth-child(5){grid-column:1 / -1;border-left:0}
+  .estado{margin-left:0}
+}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+<link rel="icon" href="../../assets/favicon.svg" type="image/svg+xml">
+<style>/* Enlace a la portada de SOM */
+.som-volver{margin:0 0 .75rem;font-size:.92rem}
+.som-volver a{display:inline-flex;align-items:center;gap:.35rem;color:var(--suave);font-weight:700;text-decoration:none;padding:.15rem 0}
+.som-volver a:hover{color:var(--navy);text-decoration:underline}
+</style>
+</head>
+<body>
+<div class="envoltorio">
+  <nav class="som-volver" aria-label="Volver"><a href="../../index.html"><svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true"><path d="M10 3 5 8l5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>Sistemas Operativos Monopuesto</a></nav>
+  <h1>Gestión de memoria</h1>
+  <p class="intro">Los mismos cuatro procesos, colocados en memoria de cinco formas distintas. Elige una técnica y pulsa Siguiente para ver cómo entran y salen.</p>
+
+  <div class="barra">
+    <div class="barra-in">
+      <div class="tecnicas" id="tecnicas" role="group" aria-label="Técnica">
+        <button type="button" data-tec="fijas" aria-pressed="true">Particiones fijas</button>
+        <button type="button" data-tec="variables" aria-pressed="false">Particiones variables</button>
+        <button type="button" data-tec="paginacion" aria-pressed="false">Paginación</button>
+        <button type="button" data-tec="segmentacion" aria-pressed="false">Segmentación</button>
+        <button type="button" data-tec="intercambio" aria-pressed="false">Intercambio</button>
+      </div>
+      <div class="controles">
+        <button type="button" class="boton" id="reiniciar">Reiniciar</button>
+        <button type="button" class="boton" id="atras">Atrás</button>
+        <button type="button" class="boton principal" id="siguiente">Siguiente</button>
+      </div>
+      <div class="estado" aria-live="polite">
+        <span class="paso" id="paso"></span>
+        <span class="t" id="reloj"></span>
+      </div>
+    </div>
+  </div>
+
+  <section class="bloque" aria-label="Simulación">
+    <p class="desc" id="desc"></p>
+    <div class="escena">
+      <div>
+        <h3>Memoria RAM (MB)</h3>
+        <div class="ram-marco">
+          <div class="ticks" id="ticks" aria-hidden="true"></div>
+          <div class="ram" id="ram"></div>
+        </div>
+      </div>
+      <div class="lado">
+        <div class="sucesos" id="sucesos" aria-live="polite"></div>
+        <div class="metricas" id="metricas"></div>
+        <div>
+          <h3>Esperando sitio en memoria</h3>
+          <div class="cola" id="cola"></div>
+        </div>
+        <div class="rechazo-caja" id="caja-rechazo" hidden>
+          <h3>Rechazados: no caben nunca</h3>
+          <div class="cola" id="rechazo"></div>
+        </div>
+        <div class="disco-caja" id="caja-disco" hidden>
+          <h3>En el disco (área de intercambio)</h3>
+          <div class="cola" id="disco"></div>
+        </div>
+        <div class="caja-tabla" id="caja-tabla">
+          <h3 id="titulo-tabla"></h3>
+          <div class="elegir" id="elegir"></div>
+          <div id="tabla"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="inferior">
+    <section class="bloque" aria-label="Datos del ejercicio">
+      <h2>Datos del ejercicio</h2>
+      <div class="parts" style="margin:0 0 .8rem"><label style="font-weight:700;color:var(--navy);font-size:1rem">Tamaño de la RAM (MB): <input type="number" id="ram-tam" min="500" max="2000" step="100" value="1000"></label></div>
+      <div class="tabla-scroll">
+        <table class="procesos">
+          <thead><tr><th>Proceso</th><th>Llegada</th><th>Duración</th><th>Tamaño (MB)</th></tr></thead>
+          <tbody id="filas"></tbody>
+        </table>
+      </div>
+      <div class="parts" id="parts"><span style="font-weight:700;color:var(--navy)">Particiones fijas (MB):</span></div>
+      <div class="parts" id="fila-swap" hidden><label style="font-weight:700;color:var(--navy);font-size:1rem">Área de intercambio en el disco (MB): <input type="number" id="swap-tam" min="0" max="4000" step="50" value="500"></label></div>
+      <p class="nota">La RAM tiene <span id="txt-ram">1000</span> MB (múltiplo de 100, entre 500 y 2000): los 200 primeros son del sistema operativo y quedan <span id="txt-libre">800</span> MB para los procesos. Las páginas y los marcos son de 100 MB. En segmentación, cada proceso se parte en código (60 %) y datos (40 %). La duración cuenta desde que el proceso entra en memoria; si va al disco, se pausa.</p>
+      <p class="error" id="error" role="alert"></p>
+      <div class="fila-botones"><button type="button" class="boton" id="ejemplo">Volver al ejemplo</button></div>
+    </section>
+
+    <section class="bloque" aria-label="Comparativa">
+      <div class="cabecera-res">
+        <h2>Cuánto espera cada proceso</h2>
+        <label class="interruptor"><input type="checkbox" id="ocultar"> Ocultar resultados</label>
+      </div>
+      <p class="nota" style="margin:0 0 .6rem">Tiempo que pasa cada proceso fuera de la memoria (esperando o en el disco), con cada técnica.</p>
+      <div class="tabla-scroll"><table class="res" id="comparativa"></table></div>
+    </section>
+  </div>
+</div>
+
+<script id="motor">
+const SO = 200, PAG = 100;
+let RAM = 1000, NMARCOS = 10;
+function ponerRAM(v) { RAM = v; NMARCOS = v / PAG; }
+const EJEMPLO = {
+  procs: [
+    { lleg: 0, dur: 6, tam: 250 },
+    { lleg: 1, dur: 3, tam: 150 },
+    { lleg: 2, dur: 5, tam: 200 },
+    { lleg: 3, dur: 4, tam: 250 }
+  ],
+  parts: [100, 200, 200, 300],
+  ram: 1000,
+  swap: 500
+};
+
+function lista(items, unidad) {
+  const u = unidad || "";
+  if (items.length === 1) return items[0] + u;
+  return items.slice(0, -1).join(", ") + " y " + items[items.length - 1] + u;
+}
+
+function huecos(ocupados) {
+  const ord = [...ocupados].sort((a, b) => a.ini - b.ini);
+  const res = [];
+  let pos = SO;
+  for (const o of ord) {
+    if (o.ini > pos) res.push({ ini: pos, tam: o.ini - pos });
+    pos = Math.max(pos, o.ini + o.tam);
+  }
+  if (pos < RAM) res.push({ ini: pos, tam: RAM - pos });
+  return res;
+}
+
+// Segmentación: 60 % código y 40 % datos, redondeado a decenas y con al menos 10 MB cada uno
+function partirSegmentos(tam) {
+  let cod = Math.max(10, Math.round(tam * 0.6 / 10) * 10);
+  if (tam - cod < 10) cod = tam - 10;
+  return [cod, tam - cod];
+}
+
+function simular(tec, procs, parts, swap) {
+  const SWAP = swap === undefined ? Infinity : swap; // tamaño del área de intercambio en el disco
+  const P = procs.map((p, i) => {
+    const [cod, dat] = partirSegmentos(p.tam);
+    return {
+      nom: "P" + (i + 1), i, cod, dat, tam: p.tam,
+      lleg: p.lleg, dur: p.dur, rem: p.dur, desde: null, entra: null, sale: null, nunca: false, llegado: false
+    };
+  });
+  const enMem = new Set();
+  let disco = [];                // intercambio: procesos sacados al disco
+  const ud = n => n === 1 ? "unidad" : "unidades";
+  let allocs = [];               // variables y segmentación: {ini, tam, proc, seg}
+  let particiones = null;        // fijas: {num, ini, tam, proc}
+  const marcos = Array(NMARCOS).fill(null); // paginación: {proc, pag}
+  if (tec === "fijas") {
+    let ini = SO;
+    particiones = parts.map((tam, k) => { const o = { num: k + 1, ini, tam, proc: null }; ini += tam; return o; });
+  }
+
+  function nuncaCabe(p) {
+    if (tec === "fijas") {
+      const max = Math.max(...parts);
+      if (p.tam > max) return `La partición más grande es de ${max} MB, así que ${p.nom} no cabe en ninguna y no podrá entrar nunca: el sistema lo rechaza.`;
+    } else if (tec === "paginacion") {
+      const n = Math.ceil(p.tam / PAG);
+      if (n > NMARCOS - SO / PAG) return `Necesita ${n} marcos y solo hay ${NMARCOS - SO / PAG} para procesos, así que no podrá entrar nunca: el sistema lo rechaza.`;
+    } else if (p.tam > RAM - SO) {
+      return `Solo hay ${RAM - SO} MB para procesos, así que ${p.nom} no podrá entrar nunca: el sistema lo rechaza.`;
+    }
+    return null;
+  }
+
+  function colocar(p, vuelve) {
+    if (tec === "fijas") {
+      const part = particiones.find(x => x.proc === null && x.tam >= p.tam);
+      if (!part) return null;
+      part.proc = p.i;
+      const sob = part.tam - p.tam;
+      return `${p.nom} entra en la partición ${part.num}, de ${part.tam} MB.` +
+        (sob ? ` Le sobran ${sob} MB que nadie más puede usar: es fragmentación interna.` : " La llena justo, sin desperdiciar nada.");
+    }
+    if (tec === "variables" || tec === "intercambio") {
+      const h = huecos(allocs).find(h => h.tam >= p.tam);
+      if (!h) return null;
+      allocs.push({ ini: h.ini, tam: p.tam, proc: p.i });
+      if (vuelve) return `${p.nom} vuelve del disco a la memoria y ocupa de ${h.ini} a ${h.ini + p.tam} MB. ${p.rem === 1 ? "Le queda" : "Le quedan"} ${p.rem} ${ud(p.rem)} de tiempo.`;
+      return `${p.nom} entra en el primer hueco donde cabe y ocupa de ${h.ini} a ${h.ini + p.tam} MB, justo lo que necesita.`;
+    }
+    if (tec === "paginacion") {
+      const n = Math.ceil(p.tam / PAG);
+      const libres = [];
+      for (let m = SO / PAG; m < NMARCOS; m++) if (!marcos[m]) libres.push(m);
+      if (libres.length < n) return null;
+      const usa = libres.slice(0, n);
+      usa.forEach((m, k) => { marcos[m] = { proc: p.i, pag: k }; });
+      p.marcos = usa;
+      const nombres = usa.map(m => "M" + m);
+      let txt = n === 1
+        ? `${p.nom} cabe en una sola página, que entra en el marco ${nombres[0]}.`
+        : `${p.nom} se parte en ${n} páginas de 100 MB, que entran en los marcos ${lista(nombres)}.`;
+      const sob = n * PAG - p.tam;
+      if (sob) txt += ` La última página solo usa ${PAG - sob} MB: se pierden ${sob} MB por fragmentación interna.`;
+      const seguidos = usa.every((m, k) => k === 0 || m === usa[k - 1] + 1);
+      if (!seguidos) txt += " Los marcos no están seguidos, y no pasa nada: la tabla de páginas dice dónde está cada página.";
+      return txt;
+    }
+    // segmentación
+    const hs = huecos(allocs).map(h => ({ ...h }));
+    const res = [];
+    for (const [seg, tam] of [["código", p.cod], ["datos", p.dat]]) {
+      const h = hs.find(h => h.tam >= tam);
+      if (!h) return null;
+      res.push({ ini: h.ini, tam, proc: p.i, seg });
+      h.ini += tam; h.tam -= tam;
+    }
+    allocs.push(...res);
+    p.segs = res;
+    const [c, d] = res;
+    let txt = `${p.nom} entra por segmentos: el código (${c.tam} MB) va de ${c.ini} a ${c.ini + c.tam} y los datos (${d.tam} MB), de ${d.ini} a ${d.ini + d.tam}.`;
+    if (d.ini !== c.ini + c.tam) txt += " Los dos segmentos no están juntos: cada uno va al primer hueco donde cabe.";
+    return txt;
+  }
+
+  function textoSale(p) {
+    if (tec === "fijas") {
+      const part = particiones.find(x => x.proc === p.i);
+      return `${p.nom} termina y deja libre la partición ${part.num}.`;
+    }
+    if (tec === "paginacion") {
+      const ms = p.marcos.map(m => "M" + m);
+      return ms.length === 1 ? `${p.nom} termina y deja libre el marco ${ms[0]}.` : `${p.nom} termina y deja libres los marcos ${lista(ms)}.`;
+    }
+    if (tec === "segmentacion") return `${p.nom} termina y deja libres sus dos segmentos (${p.tam} MB en total).`;
+    const a = allocs.find(x => x.proc === p.i);
+    return `${p.nom} termina y deja libres sus ${p.tam} MB, de ${a.ini} a ${a.ini + a.tam}.`;
+  }
+
+  function liberar(p) {
+    if (tec === "fijas") particiones.find(x => x.proc === p.i).proc = null;
+    else if (tec === "paginacion") p.marcos.forEach(m => { marcos[m] = null; });
+    else allocs = allocs.filter(x => x.proc !== p.i);
+  }
+
+  function textoEspera(p, nuevo) {
+    const pre = nuevo ? `${p.nom} tiene que esperar` : `${p.nom} sigue esperando`;
+    if (tec === "fijas") {
+      const libres = particiones.filter(x => x.proc === null);
+      if (!libres.length) return `${pre}: no queda ninguna partición libre.`;
+      if (libres.length === 1) return `${pre}: la única partición libre es de ${libres[0].tam} MB y no cabe.`;
+      return `${pre}: las particiones libres son de ${lista(libres.map(x => x.tam), " MB")} y no cabe en ninguna.`;
+    }
+    if (tec === "paginacion") {
+      const n = Math.ceil(p.tam / PAG);
+      const f = marcos.slice(SO / PAG).filter(m => !m).length;
+      if (!f) return `${pre}: necesita ${n} marcos y no queda ninguno libre.`;
+      return `${pre}: necesita ${n} marcos y solo ${f === 1 ? "queda 1 libre" : "quedan " + f + " libres"}.`;
+    }
+    const hs = huecos(allocs);
+    const total = hs.reduce((s, h) => s + h.tam, 0);
+    if (!total) return `${pre}: la memoria está llena.`;
+    if (total < p.tam) return `${pre}: solo quedan ${total} MB libres.`;
+    const tams = lista(hs.map(h => h.tam), " MB");
+    if (tec === "variables" || tec === "intercambio")
+      return `${pre} aunque hay ${total} MB libres: están repartidos en huecos de ${tams} y no cabe en ninguno. Esto es la fragmentación externa.`;
+    return `${pre} aunque hay ${total} MB libres: sus segmentos no caben en los huecos que hay (${tams}). También aquí hay fragmentación externa.`;
+  }
+
+  function foto(t, sucesos, entran, cola) {
+    const bloques = [{ ini: 0, tam: SO, tipo: "so", et: "Sistema operativo" }];
+    let interna = 0, usada = 0;
+    P.forEach(p => { if (enMem.has(p.i)) usada += p.tam; });
+    const tablas = {};
+    if (tec === "fijas") {
+      for (const x of particiones) {
+        if (x.proc === null) { bloques.push({ ini: x.ini, tam: x.tam, tipo: "libre", et: "Libre" }); continue; }
+        const p = P[x.proc];
+        bloques.push({ ini: x.ini, tam: p.tam, tipo: "proc", proc: p.i, et: `${p.nom} (${p.tam} MB)`, key: p.nom });
+        const sob = x.tam - p.tam;
+        if (sob) { interna += sob; bloques.push({ ini: x.ini + p.tam, tam: sob, tipo: "frag", et: `${sob} MB sin usar` }); }
+      }
+    } else if (tec === "paginacion") {
+      for (let m = SO / PAG; m < NMARCOS; m++) {
+        const c = marcos[m];
+        if (!c) { bloques.push({ ini: m * PAG, tam: PAG, tipo: "libre", et: "Libre" }); continue; }
+        const p = P[c.proc];
+        const usa = Math.min(PAG, p.tam - c.pag * PAG);
+        bloques.push({ ini: m * PAG, tam: usa, tipo: "proc", proc: p.i, et: `${p.nom} pág. ${c.pag}`, key: p.nom + "-" + c.pag });
+        if (usa < PAG) { interna += PAG - usa; bloques.push({ ini: m * PAG + usa, tam: PAG - usa, tipo: "frag", et: `${PAG - usa} MB sin usar` }); }
+      }
+      P.forEach(p => { if (enMem.has(p.i)) tablas[p.i] = p.marcos.map((m, k) => [k, "M" + m]); });
+    } else {
+      for (const a of allocs) {
+        const p = P[a.proc];
+        if (tec !== "segmentacion") bloques.push({ ini: a.ini, tam: a.tam, tipo: "proc", proc: p.i, et: `${p.nom} (${p.tam} MB)`, key: p.nom });
+        else bloques.push({ ini: a.ini, tam: a.tam, tipo: "proc", proc: p.i, seg: a.seg, et: `${p.nom} ${a.seg}`, key: p.nom + "-" + a.seg });
+      }
+      for (const h of huecos(allocs)) bloques.push({ ini: h.ini, tam: h.tam, tipo: "libre", et: `Libre (${h.tam} MB)` });
+      if (tec === "segmentacion")
+        P.forEach(p => { if (enMem.has(p.i)) tablas[p.i] = p.segs.map(s => [s.seg, s.ini, s.tam]); });
+    }
+    const libre = RAM - SO - usada - interna;
+    const nHuecos = (tec !== "fijas" && tec !== "paginacion") ? huecos(allocs).length : null;
+    return {
+      t, sucesos, entran, bloques,
+      particiones: particiones ? particiones.map(x => ({ num: x.num, ini: x.ini, tam: x.tam })) : null,
+      cola: cola.map(p => p.i), enMem: [...enMem], tablas,
+      rechazados: P.filter(p => p.nunca).map(p => p.i),
+      disco: disco.map(p => ({ i: p.i, tam: p.tam, rem: p.rem })),
+      met: { usada, interna, libre, nHuecos, disco: disco.reduce((s, p) => s + p.tam, 0), swap: SWAP }
+    };
+  }
+
+  const pasos = [foto(null, ["Al empezar, en la memoria solo está el sistema operativo, que ocupa los primeros 200 MB."], [], [])];
+  let cola = [];
+  for (let vuelta = 0; vuelta < 500; vuelta++) {
+    const cand = [];
+    P.forEach(p => { if (!p.llegado) cand.push(p.lleg); if (enMem.has(p.i)) cand.push(p.sale); });
+    if (!cand.length) break;
+    const t = Math.min(...cand);
+    const suc = [];
+    const salen = P.filter(p => enMem.has(p.i) && p.sale === t);
+    salen.forEach(p => { suc.push(textoSale(p)); liberar(p); enMem.delete(p.i); });
+    const llegan = P.filter(p => !p.llegado && p.lleg === t);
+    llegan.forEach(p => {
+      p.llegado = true;
+      const nunca = nuncaCabe(p);
+      if (nunca) { p.nunca = true; suc.push(`Llega ${p.nom}, que necesita ${p.tam} MB. ` + nunca); return; }
+      cola.push(p);
+      suc.push(tec === "segmentacion"
+        ? `Llega ${p.nom}, que necesita ${p.tam} MB: ${p.cod} de código y ${p.dat} de datos.`
+        : `Llega ${p.nom}, que necesita ${p.tam} MB.`);
+    });
+    const entran = [], aDisco = [], sinDisco = {};
+    const enDisco = () => disco.reduce((s, q) => s + q.tam, 0);
+    const admitir = (p, txt) => {
+      if (p.entra === null) p.entra = t;
+      p.desde = t; p.sale = t + p.rem;
+      enMem.add(p.i); entran.push(p.i);
+      suc.push(txt);
+    };
+    for (const p of [...disco]) {
+      const txt = colocar(p, true);
+      if (!txt) continue;
+      disco = disco.filter(q => q !== p);
+      admitir(p, txt);
+    }
+    for (const p of [...cola]) {
+      let txt = colocar(p);
+      if (!txt && tec === "intercambio") {
+        const utiles = P.filter(v => enMem.has(v.i) && v.desde < t)
+          .sort((a, b) => a.desde - b.desde || a.i - b.i)
+          .filter(v => huecos(allocs.filter(x => x.proc !== v.i)).some(h => h.tam >= p.tam));
+        const victima = utiles.find(v => enDisco() + v.tam <= SWAP);
+        if (!victima && utiles.length) {
+          const v = utiles[0], libreDisco = SWAP - enDisco();
+          sinDisco[p.i] = `sacar a ${v.nom} al disco le haría sitio, pero ${v.nom} ocupa ${v.tam} MB y en el área de intercambio ${libreDisco === 0 ? "no queda nada libre" : "solo quedan " + libreDisco + " MB libres"}.`;
+        }
+        if (victima) {
+          victima.rem -= t - victima.desde;
+          liberar(victima); enMem.delete(victima.i); victima.sale = null;
+          disco.push(victima); aDisco.push(victima);
+          suc.push(`${p.nom} no cabe, así que el sistema saca a ${victima.nom} entero al disco (al área de intercambio) para hacerle sitio. ${victima.nom} se queda en pausa: ${victima.rem === 1 ? "le queda" : "le quedan"} ${victima.rem} ${ud(victima.rem)} de tiempo.` + (victima !== utiles[0] ? ` No saca a ${utiles[0].nom}, que lleva más tiempo en memoria, porque sus ${utiles[0].tam} MB no caben en el área de intercambio.` : ""));
+          txt = colocar(p);
+        }
+      }
+      if (!txt) continue;
+      cola = cola.filter(q => q !== p);
+      admitir(p, txt);
+    }
+    cola.forEach(p => suc.push(sinDisco[p.i]
+      ? `${p.nom} ${llegan.includes(p) ? "tiene que esperar" : "sigue esperando"}: ${sinDisco[p.i]}`
+      : textoEspera(p, llegan.includes(p))));
+    if (salen.length || llegan.length) disco.filter(p => !aDisco.includes(p)).forEach(p => {
+      const total = huecos(allocs).reduce((s, h) => s + h.tam, 0);
+      suc.push(`${p.nom} sigue en el disco: necesita ${p.tam} MB y ` + (total < p.tam ? `solo quedan ${total} MB libres.` : "ningún hueco es tan grande."));
+    });
+    if (!enMem.size && !cola.length && !disco.length && P.every(p => p.llegado)) {
+      const fuera = P.filter(p => p.nunca).map(p => p.nom);
+      suc.push("Ya no queda ningún proceso: la memoria vuelve a estar como al principio.");
+      if (fuera.length) suc.push(fuera.length === 1
+        ? `${fuera[0]} no ha llegado a entrar nunca: con esta técnica no cabe en la memoria.`
+        : `${lista(fuera)} no han llegado a entrar nunca: con esta técnica no caben en la memoria.`);
+    }
+    pasos.push(foto(t, suc, entran, cola));
+  }
+  return { pasos, procesos: P };
+}
+</script>
+
+<script>
+const NOMBRES = { fijas: "Particiones fijas", variables: "Particiones variables", paginacion: "Paginación", segmentacion: "Segmentación", intercambio: "Intercambio" };
+const DESCRIPCION = {
+  fijas: "La memoria está dividida de antemano en particiones de tamaño fijo. Cada proceso ocupa una partición entera, la primera libre donde quepa, aunque le sobre sitio.",
+  variables: "No hay particiones: cada proceso ocupa justo lo que necesita, en el primer hueco libre donde quepa. Cuando un proceso sale, deja un hueco.",
+  paginacion: "La memoria se divide en marcos de 100 MB y cada proceso, en páginas del mismo tamaño. Cada página puede ir a cualquier marco libre, aunque no estén seguidos.",
+  segmentacion: "Cada proceso se divide en dos segmentos, código y datos, de tamaños distintos. Cada segmento va al primer hueco libre donde quepa, por separado.",
+  intercambio: "Como las particiones variables, pero si un proceso nuevo no cabe, el sistema saca entero al disco el proceso que lleva más tiempo en memoria y lo vuelve a traer cuando haya sitio. Mientras está en el disco, ese proceso no avanza."
+};
+const COLORES = [1, 2, 3, 4].map(n => `--c:var(--p${n});--ct:var(--t${n})`);
+
+let datos = JSON.parse(JSON.stringify(EJEMPLO));
+let tec = "fijas", pasos = [], idx = 0, elegido = null, anterior = -1, partsOk = true, swapOk = true;
+const $ = id => document.getElementById(id);
+
+function ponerTicks() {
+  let h = "";
+  for (let k = 0; k <= RAM; k += 100) h += `<span style="top:${k / RAM * 100}%">${k}</span>`;
+  $("ticks").innerHTML = h;
+}
+
+function construirDatos() {
+  $("ram-tam").value = datos.ram;
+  $("swap-tam").value = datos.swap;
+  $("filas").innerHTML = datos.procs.map((p, i) => `
+    <tr>
+      <td><span class="muestra" style="${COLORES[i]}">P${i + 1}</span></td>
+      <td><input type="number" min="0" max="99" step="1" data-i="${i}" data-k="lleg" value="${p.lleg}" aria-label="Llegada de P${i + 1}"></td>
+      <td><input type="number" min="1" max="99" step="1" data-i="${i}" data-k="dur" value="${p.dur}" aria-label="Duración de P${i + 1}"></td>
+      <td><input type="number" min="20" max="1800" step="10" data-i="${i}" data-k="tam" value="${p.tam}" aria-label="Tamaño de P${i + 1} en MB"></td>
+    </tr>`).join("");
+  const cont = $("parts");
+  cont.querySelectorAll("label").forEach(l => l.remove());
+  datos.parts.forEach((v, k) => {
+    const l = document.createElement("label");
+    l.innerHTML = `${k + 1} <input type="number" min="10" max="1800" step="10" data-part="${k}" value="${v}" aria-label="Tamaño de la partición ${k + 1} en MB">`;
+    cont.appendChild(l);
+  });
+}
+
+function leerDatos() {
+  const err = [];
+  const ram = Number($("ram-tam").value);
+  const ramOk = Number.isInteger(ram) && ram % PAG === 0 && ram >= 500 && ram <= 2000;
+  if (!ramOk) err.push("La RAM debe ser un múltiplo de 100 entre 500 y 2000 MB.");
+  const swap = Number($("swap-tam").value);
+  const errSwap = (Number.isInteger(swap) && swap >= 0 && swap <= 4000) ? [] : ["El área de intercambio debe ser un número entero entre 0 y 4000 MB."];
+  const procs = datos.procs.map((p, i) => {
+    const q = {};
+    for (const k of ["lleg", "dur", "tam"]) {
+      const inp = document.querySelector(`input[data-i="${i}"][data-k="${k}"]`);
+      q[k] = Number(inp.value);
+    }
+    if (![q.lleg, q.dur, q.tam].every(Number.isInteger)) err.push(`Revisa P${i + 1}: todos los valores deben ser números enteros.`);
+    else if (q.lleg < 0 || q.dur < 1) err.push(`Revisa P${i + 1}: la llegada no puede ser negativa y la duración debe ser al menos 1.`);
+    else if (q.tam < 20) err.push(`Revisa P${i + 1}: el tamaño debe ser de al menos 20 MB.`);
+    return q;
+  });
+  const parts = datos.parts.map((_, k) => Number(document.querySelector(`input[data-part="${k}"]`).value));
+  const suma = parts.reduce((s, v) => s + v, 0);
+  const errPart = [];
+  if (!parts.every(v => Number.isInteger(v) && v >= 10)) errPart.push("Cada partición debe tener al menos 10 MB.");
+  else if (ramOk && suma !== ram - SO) errPart.push(`Las particiones deben sumar ${ram - SO} MB; ahora suman ${suma}.`);
+  return { procs, parts, err, errPart, ram, swap, errSwap };
+}
+
+function recalcular(conservarPaso) {
+  const r = leerDatos();
+  // Las particiones solo cuentan en particiones fijas: si están mal, no bloquean las demás técnicas
+  const errores = r.err.concat(tec === "fijas" ? r.errPart : [], tec === "intercambio" ? r.errSwap : []);
+  $("error").textContent = errores[0] || "";
+  $("parts").hidden = tec !== "fijas";
+  $("fila-swap").hidden = tec !== "intercambio";
+  if (errores.length) return;
+  datos.procs = r.procs;
+  datos.ram = r.ram; ponerRAM(r.ram);
+  $("txt-ram").textContent = r.ram; $("txt-libre").textContent = r.ram - SO;
+  ponerTicks();
+  partsOk = !r.errPart.length;
+  swapOk = !r.errSwap.length;
+  if (swapOk) datos.swap = r.swap;
+  if (partsOk) datos.parts = r.parts;
+  pasos = simular(tec, datos.procs, datos.parts, datos.swap).pasos;
+  if (!conservarPaso) { idx = 0; anterior = -1; elegido = null; }
+  idx = Math.min(idx, pasos.length - 1);
+  render();
+  comparativa();
+}
+
+function render() {
+  const s = pasos[idx];
+  $("desc").textContent = DESCRIPCION[tec];
+  $("paso").textContent = `Paso ${idx} de ${pasos.length - 1}`;
+  $("reloj").textContent = s.t === null ? "Inicio" : `t = ${s.t}`;
+  $("atras").disabled = idx === 0;
+  $("reiniciar").disabled = idx === 0;
+  $("siguiente").disabled = idx === pasos.length - 1;
+
+  const cab = s.t === null ? "Antes de empezar" : `Qué pasa en t = ${s.t}`;
+  $("sucesos").innerHTML = `<strong>${cab}</strong><ul>${s.sucesos.map(x => `<li>${x}</li>`).join("")}</ul>`;
+
+  // Bloques nuevos respecto al paso anterior (solo al avanzar)
+  const previas = new Set();
+  if (anterior === idx - 1 && idx > 0) pasos[idx - 1].bloques.forEach(b => b.key && previas.add(b.key));
+  const animar = anterior === idx - 1 && idx > 0;
+
+  const ram = $("ram");
+  ram.classList.toggle("con-marcos", tec === "paginacion");
+  let h = "";
+  for (const b of s.bloques) {
+    const pos = `top:${b.ini / RAM * 100}%;height:${b.tam / RAM * 100}%;`;
+    const alto = b.tam / RAM * 500;
+    const et = alto >= 16 ? b.et : "";
+    if (b.tipo === "proc") {
+      const nuevo = animar && b.key && !previas.has(b.key) ? " nuevo" : "";
+      h += `<div class="blq proc${b.seg === "datos" ? " datos" : ""}${nuevo}" style="${pos}${COLORES[b.proc]}">${et}</div>`;
+    } else if (b.tipo === "frag") {
+      h += `<div class="blq frag" style="${pos}">${et ? `<span>${et}</span>` : ""}</div>`;
+    } else {
+      h += `<div class="blq ${b.tipo}" style="${pos}">${et}</div>`;
+    }
+  }
+  if (s.particiones) for (const x of s.particiones)
+    h += `<div class="particion" style="top:${x.ini / RAM * 100}%;height:${x.tam / RAM * 100}%"><span class="num">Partición ${x.num} (${x.tam} MB)</span></div>`;
+  if (tec === "paginacion") for (let m = 0; m < NMARCOS; m++)
+    h += `<div class="marco-num" style="top:${m * PAG / RAM * 100}%;height:${PAG / RAM * 100}%">M${m}</div>` + (m > 0 ? `<div class="marco-linea" style="top:${m * PAG / RAM * 100}%;height:${PAG / RAM * 100}%"></div>` : "");
+  ram.innerHTML = h;
+
+  const m = s.met;
+  const hue = m.nHuecos ? `<small> en ${m.nHuecos} ${m.nHuecos === 1 ? "hueco" : "huecos"}</small>` : "";
+  let met = `<div class="metrica"><span>Usada por procesos</span><b>${m.usada} MB</b></div>`;
+  if (tec === "fijas" || tec === "paginacion")
+    met += `<div class="metrica${m.interna ? " alerta" : ""}"><span>Desperdiciada (interna)</span><b>${m.interna} MB</b></div>`;
+  met += `<div class="metrica"><span>Libre</span><b>${m.libre} MB</b>${hue}</div>`;
+  if (tec === "intercambio") met += `<div class="metrica"><span>En el disco</span><b>${m.disco} de ${m.swap} MB</b></div>`;
+  $("metricas").innerHTML = met;
+
+  $("cola").innerHTML = s.cola.length
+    ? s.cola.map(i => { const p = datos.procs[i]; return `<span class="ficha" style="${COLORES[i]}">P${i + 1} <small>${p.tam} MB</small></span>`; }).join("")
+    : `<span class="vacia">Nadie</span>`;
+
+  $("caja-rechazo").hidden = !s.rechazados.length;
+  $("rechazo").innerHTML = s.rechazados.map(i => `<span class="ficha" style="${COLORES[i]}">P${i + 1} <small>${datos.procs[i].tam} MB</small></span>`).join("");
+  $("caja-disco").hidden = tec !== "intercambio";
+  $("disco").innerHTML = s.disco.length
+    ? s.disco.map(d => `<span class="ficha" style="${COLORES[d.i]}">P${d.i + 1} <small>${d.tam} MB, ${d.rem === 1 ? "le queda" : "le quedan"} ${d.rem}</small></span>`).join("")
+    : `<span class="vacia">Nadie</span>`;
+
+  // Tabla de páginas o de segmentos
+  const caja = $("caja-tabla");
+  if (tec === "paginacion" || tec === "segmentacion") {
+    caja.hidden = false;
+    if (s.entran.length) elegido = s.entran[s.entran.length - 1];
+    if (!s.enMem.includes(elegido)) elegido = s.enMem.length ? s.enMem[0] : null;
+    const tipo = tec === "paginacion" ? "páginas" : "segmentos";
+    if (elegido === null) {
+      $("titulo-tabla").textContent = `Tabla de ${tipo}`;
+      $("elegir").innerHTML = "";
+      $("tabla").innerHTML = `<span class="vacia">No hay ningún proceso en memoria.</span>`;
+    } else {
+      $("titulo-tabla").textContent = `Tabla de ${tipo} de P${elegido + 1}`;
+      $("elegir").innerHTML = s.enMem.length > 1 ? [...s.enMem].sort((a, b) => a - b).map(i =>
+        `<button type="button" data-ver="${i}" aria-pressed="${i === elegido}" style="${COLORES[i]}">P${i + 1}</button>`).join("") : "";
+      const filas = s.tablas[elegido];
+      $("tabla").innerHTML = tec === "paginacion"
+        ? `<table class="mini"><thead><tr><th>Página</th><th>Marco</th></tr></thead><tbody>${filas.map(f => `<tr><td>${f[0]}</td><td>${f[1]}</td></tr>`).join("")}</tbody></table>`
+        : `<table class="mini"><thead><tr><th>Segmento</th><th>Empieza en (MB)</th><th>Tamaño (MB)</th></tr></thead><tbody>${filas.map(f => `<tr><td>${f[0]}</td><td>${f[1]}</td><td>${f[2]}</td></tr>`).join("")}</tbody></table>`;
+    }
+  } else caja.hidden = true;
+
+  document.querySelectorAll("#comparativa tbody tr").forEach(tr => tr.classList.toggle("actual", tr.dataset.tec === tec));
+  anterior = idx;
+}
+
+function comparativa() {
+  const n = datos.procs.length;
+  let h = `<thead><tr><th>Técnica</th>${datos.procs.map((_, i) => `<th>P${i + 1}</th>`).join("")}<th>Todo acaba en</th></tr></thead><tbody>`;
+  for (const k of Object.keys(NOMBRES)) {
+    if (k === "fijas" && !partsOk) {
+      h += `<tr data-tec="${k}"><th scope="row">${NOMBRES[k]}</th><td colspan="${n + 1}">Revisa las particiones</td></tr>`;
+      continue;
+    }
+    if (k === "intercambio" && !swapOk) {
+      h += `<tr data-tec="${k}"><th scope="row">${NOMBRES[k]}</th><td colspan="${n + 1}">Revisa el área de intercambio</td></tr>`;
+      continue;
+    }
+    const { procesos } = simular(k, datos.procs, datos.parts, datos.swap);
+    const celdas = procesos.map(p => p.nunca ? `<td class="nunca">no entra</td>` : `<td>${p.sale - p.lleg - p.dur}</td>`).join("");
+    const fin = Math.max(...procesos.filter(p => !p.nunca).map(p => p.sale), 0);
+    h += `<tr data-tec="${k}"${k === tec ? ' class="actual"' : ""}><th scope="row">${NOMBRES[k]}</th>${celdas}<td>t = ${fin}</td></tr>`;
+  }
+  $("comparativa").innerHTML = h + "</tbody>";
+  $("comparativa").classList.toggle("oculto", $("ocultar").checked);
+}
+
+function ir(n) { idx = Math.max(0, Math.min(pasos.length - 1, n)); render(); }
+
+$("siguiente").addEventListener("click", () => ir(idx + 1));
+$("atras").addEventListener("click", () => ir(idx - 1));
+$("reiniciar").addEventListener("click", () => { elegido = null; ir(0); });
+$("tecnicas").addEventListener("click", e => {
+  const b = e.target.closest("button[data-tec]");
+  if (!b) return;
+  tec = b.dataset.tec;
+  document.querySelectorAll("#tecnicas button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  recalcular(false);
+});
+$("elegir").addEventListener("click", e => {
+  const b = e.target.closest("button[data-ver]");
+  if (!b) return;
+  elegido = Number(b.dataset.ver);
+  anterior = -1;
+  const guarda = pasos[idx].entran;
+  pasos[idx].entran = [];
+  render();
+  pasos[idx].entran = guarda;
+});
+// Al cambiar la RAM, la última partición absorbe la diferencia para que sigan sumando lo que toca
+function ajustarParticiones() {
+  const ram = Number($("ram-tam").value);
+  if (!Number.isInteger(ram) || ram % PAG || ram < 500 || ram > 2000) return;
+  const ins = [...document.querySelectorAll("input[data-part]")];
+  const resto = ram - SO - ins.slice(0, -1).reduce((s, x) => s + Number(x.value), 0);
+  if (resto >= 10) ins[ins.length - 1].value = resto;
+}
+document.addEventListener("input", e => {
+  if (e.target.id === "ram-tam") ajustarParticiones();
+  if (e.target.matches("input[data-i], input[data-part], #ram-tam, #swap-tam")) recalcular(false);
+});
+$("ejemplo").addEventListener("click", () => { datos = JSON.parse(JSON.stringify(EJEMPLO)); construirDatos(); recalcular(false); });
+$("ocultar").addEventListener("change", () => $("comparativa").classList.toggle("oculto", $("ocultar").checked));
+document.addEventListener("keydown", e => {
+  if (e.target.matches("input")) return;
+  if (e.key === "ArrowRight") { e.preventDefault(); ir(idx + 1); }
+  else if (e.key === "ArrowLeft") { e.preventDefault(); ir(idx - 1); }
+  else if (e.key === "Home") { e.preventDefault(); ir(0); }
+});
+
+ponerTicks();
+construirDatos();
+recalcular(false);
+</script>
+</body>
+</html>
