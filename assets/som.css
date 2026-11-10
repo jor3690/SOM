@@ -32,28 +32,18 @@ button{font:inherit;color:inherit}
 .envoltorio{max-width:1120px;margin:0 auto;padding:2rem 1.25rem 3rem}
 
 /* Cabecera */
-.cabecera{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:flex-start;gap:1rem 2rem}
-.titulo{max-width:44rem}
+.cabecera{display:grid;grid-template-columns:1fr minmax(240px,320px);align-items:center;gap:1.5rem 3rem;margin-bottom:2.75rem}
 h1{margin:0;font-size:clamp(2.1rem,5.2vw,3.4rem);line-height:1.05;letter-spacing:-.01em;color:var(--navy)}
-.sub{margin:.7rem 0 0;color:var(--suave);font-size:1.12rem;max-width:56ch}
-.idioma{display:flex;border:1px solid var(--linea);border-radius:8px;overflow:hidden;background:var(--panel);flex:none}
-.idioma button{border:0;border-left:1px solid var(--linea);background:none;padding:.4rem .8rem;font-weight:700;cursor:pointer;font-size:.92rem}
-.idioma button:first-child{border-left:0}
-.idioma button[aria-pressed="true"]{background:var(--navy);color:var(--panel)}
+.sub{margin:.8rem 0 0;color:var(--suave);font-size:1.12rem;max-width:52ch}
 
-/* Franja de memoria: el guiño visual de la portada */
-.franja{display:flex;height:3rem;margin:1.75rem 0 2.5rem;border:2px solid var(--navy);border-radius:8px;overflow:hidden;background:var(--panel)}
-.franja span{display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85rem;border-left:1px solid var(--panel);transform-origin:left center;animation:crece .7s cubic-bezier(.2,.7,.2,1) both}
-.franja span:first-child{border-left:0}
-.franja .so{background:repeating-linear-gradient(135deg,color-mix(in srgb,var(--so) 18%,var(--panel)) 0 8px,color-mix(in srgb,var(--so) 30%,var(--panel)) 8px 16px);color:var(--tinta)}
-.franja .libre{background:var(--panel);border-left:1px dashed var(--linea)}
-.franja .frag{background:repeating-linear-gradient(45deg,transparent 0 5px,color-mix(in srgb,var(--aviso) 55%,var(--panel)) 5px 6px)}
-.franja .c1{background:var(--p1);color:var(--t1)} .franja .c2{background:var(--p2);color:var(--t2)}
-.franja .c3{background:var(--p3);color:var(--t3)} .franja .c4{background:var(--p4);color:var(--t4)}
-.franja span:nth-child(2){animation-delay:.08s} .franja span:nth-child(3){animation-delay:.16s}
-.franja span:nth-child(4){animation-delay:.24s} .franja span:nth-child(5){animation-delay:.32s}
-.franja span:nth-child(6){animation-delay:.4s}  .franja span:nth-child(7){animation-delay:.48s}
-@keyframes crece{from{opacity:0;transform:scaleX(.3)}to{opacity:1;transform:none}}
+/* Capas del ordenador: el guiño visual de la portada. El sistema operativo, en medio. */
+.capas{display:flex;flex-direction:column;gap:.35rem}
+.capas span{display:flex;align-items:center;justify-content:center;height:2.6rem;border-radius:8px;font-weight:700;font-size:.95rem;animation:aparece .5s cubic-bezier(.2,.7,.2,1) both}
+.c-hw{background:var(--navy);color:var(--panel);animation-delay:0s!important}
+.c-so{background:var(--cian);color:#FFFFFF;height:3.2rem!important;font-size:1.05rem!important;animation-delay:.12s!important}
+.c-apps{background:var(--p3);color:var(--t3);margin:0 1.2rem;animation-delay:.24s!important}
+.c-usuario{background:var(--panel);color:var(--suave);border:2px dashed var(--linea);margin:0 2.4rem;animation-delay:.36s!important}
+@keyframes aparece{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
 
 h2{margin:0 0 1rem;font-size:1.45rem;color:var(--navy);line-height:1.2}
 section+section{margin-top:3rem}
@@ -73,25 +63,8 @@ section+section{margin-top:3rem}
 .temas li{font-size:.85rem;padding:.15rem .55rem;border-radius:6px;background:var(--cian-claro);color:var(--navy);font-weight:700}
 .abrir{margin-top:auto;padding-top:.3rem;font-weight:700;color:var(--cian)}
 
-/* Unidades por evaluación */
-.evaluaciones{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;align-items:start}
-.evaluacion{background:var(--panel);border:1px solid var(--linea);border-radius:10px;padding:1rem 1.1rem}
-.evaluacion h3{margin:0 0 .6rem;font-size:1.05rem;color:var(--suave)}
-.unidades{list-style:none;margin:0;padding:0}
-.unidad{display:grid;grid-template-columns:2.6rem 1fr;gap:.2rem .7rem;padding:.65rem 0;border-top:1px solid var(--linea)}
-.unidad:first-child{border-top:0;padding-top:.2rem}
-.num{grid-row:span 2;display:flex;align-items:center;justify-content:center;width:2.6rem;height:2.6rem;border-radius:8px;background:var(--fondo);color:var(--suave);font-weight:700;font-size:.95rem;border:1px solid var(--linea)}
-.unidad.con-recursos .num{background:var(--navy);color:var(--panel);border-color:var(--navy)}
-.unidad .nombre{font-weight:700;line-height:1.3;align-self:center}
-.unidad .enlaces{display:flex;flex-direction:column;gap:.15rem;font-size:.92rem}
-.unidad .enlaces a{color:var(--cian);font-weight:700;text-decoration:none}
-.unidad .enlaces a:hover{text-decoration:underline}
-.unidad .enlaces small{color:var(--suave);font-weight:400}
-.vacio{color:var(--suave);font-size:.88rem}
-
 footer{margin-top:3rem;padding-top:1.25rem;border-top:1px solid var(--linea);color:var(--suave);font-size:.92rem}
 footer p{margin:0;max-width:70ch}
 
-@media (max-width:900px){.evaluaciones{grid-template-columns:1fr}}
-@media (max-width:560px){.franja span{font-size:.72rem}}
+@media (max-width:760px){.cabecera{grid-template-columns:1fr}.capas{max-width:340px}}
 @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}

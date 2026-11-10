@@ -31,19 +31,20 @@ Si algún día cambias el nombre del repositorio, cambia también `/som/` en `40
 
 ## Añadir un recurso
 
-Abre `assets/recursos.js`, busca la unidad y añade un objeto en `recursos`:
+Abre `assets/recursos.js` y añade un bloque en la lista `recursos`:
 
 ```js
-{ tipo: "simulador",                         // "simulador", "apuntes", "practica" o "enlace"
+{ tipo: "simulador",                        // "simulador", "apuntes", "practica" o "enlace"
+  ud: 6,                                    // opcional: sale como «Unidad 6» en la tarjeta
   url: "simuladores/procesos-linux/index.html",
-  titulo: { es: "Procesos en Linux", va: "Processos en Linux" },
-  desc:   { es: "Frase corta de qué se practica.", va: "Frase curta del que es practica." },
-  temas:  { es: ["ps", "top", "kill"], va: ["ps", "top", "kill"] } }   // opcional
+  titulo: "Procesos en Linux",
+  desc: "Frase corta de qué se practica.",
+  temas: ["ps", "top", "kill"] },           // opcional
 ```
 
-La portada lo coloca sola: los simuladores salen como tarjetas arriba y todos los recursos
-aparecen además en su unidad, en la lista por evaluaciones. `url` también puede ser un enlace
-externo (por ejemplo, a Aules).
+La portada lo coloca sola en su apartado (Simuladores, Apuntes, Prácticas o Enlaces).
+Los apartados sin nada no aparecen. `url` también puede ser un enlace externo, por ejemplo
+a Aules, y entonces se abre en una pestaña nueva.
 
 ## Añadir un simulador nuevo
 

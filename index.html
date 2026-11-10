@@ -15,43 +15,26 @@
 <div class="envoltorio">
   <header class="cabecera">
     <div class="titulo">
-      <h1 id="h1">Sistemas Operativos Monopuesto</h1>
-      <p class="sub" id="sub">1.º de Sistemas Microinformáticos y Redes. Simuladores y recursos para practicar en clase y en casa.</p>
+      <h1>Sistemas Operativos Monopuesto</h1>
+      <p class="sub">1.º de Sistemas Microinformáticos y Redes. Simuladores y recursos para practicar en clase y en casa.</p>
     </div>
-    <div class="idioma" id="idioma" role="group" aria-label="Idioma / Idioma">
-      <button type="button" data-idioma="es" aria-pressed="true">Castellano</button>
-      <button type="button" data-idioma="va" aria-pressed="false">Valencià</button>
+    <div class="capas" aria-hidden="true">
+      <span class="c-usuario">Usuario</span>
+      <span class="c-apps">Aplicaciones</span>
+      <span class="c-so">Sistema operativo</span>
+      <span class="c-hw">Hardware</span>
     </div>
   </header>
 
-  <div class="franja" aria-hidden="true">
-    <span class="so" style="flex:20">SO</span>
-    <span class="c1" style="flex:22">P1</span>
-    <span class="c2" style="flex:13">P2</span>
-    <span class="libre" style="flex:9"></span>
-    <span class="c3" style="flex:18">P3</span>
-    <span class="c4" style="flex:13">P4</span>
-    <span class="frag" style="flex:5"></span>
-  </div>
-
-  <main>
-    <section id="sec-simuladores" aria-labelledby="t-simuladores">
-      <h2 id="t-simuladores">Simuladores</h2>
-      <div class="tarjetas" id="tarjetas">
-        <noscript>
-          <p><a href="simuladores/planificacion/index.html">Planificación de procesos</a> · <a href="simuladores/memoria/index.html">Gestión de memoria</a></p>
-        </noscript>
-      </div>
-    </section>
-
-    <section aria-labelledby="t-curso">
-      <h2 id="t-curso">El curso, unidad a unidad</h2>
-      <div class="evaluaciones" id="evaluaciones"></div>
-    </section>
+  <main id="apartados">
+    <noscript>
+      <p><a href="simuladores/planificacion/index.html">Planificación de procesos</a></p>
+      <p><a href="simuladores/memoria/index.html">Gestión de memoria</a></p>
+    </noscript>
   </main>
 
   <footer>
-    <p id="pie">Los simuladores funcionan en el navegador, también en el móvil, y no guardan nada de lo que hagas.</p>
+    <p>Los simuladores funcionan en el navegador, también en el móvil, y no guardan nada de lo que hagas.</p>
   </footer>
 </div>
 <script src="assets/recursos.js"></script>
